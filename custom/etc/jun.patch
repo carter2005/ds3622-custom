@@ -1,0 +1,219 @@
+diff --git a/etc/hosts b/etc/hosts
+index 37f1ad4..78d7e48 100644
+--- a/etc/hosts
++++ b/etc/hosts
+@@ -2,3 +2,5 @@
+ # that require network functionality will fail.
+ 127.0.0.1	localhost
+ ::1	localhost
++127.0.0.1	update7.synology.com
++127.0.0.1	dataupdate7.synology.com
+diff --git a/etc/passwd b/etc/passwd
+index 60931c8..f90c52f 100644
+--- a/etc/passwd
++++ b/etc/passwd
+@@ -1,4 +1,4 @@
+-root:x:0:0::/root:/bin/ash
++root::0:0::/root:/bin/ash
+ system:x:1:1::/usr/syno/synoman:/usr/bin/nologin
+ daemon:x:2:2::/:/bin/sh
+ lp:x:7:7::/var/spool/lpd:/bin/sh
+diff --git a/etc/synoinfo.conf b/etc/synoinfo.conf
+index 4b2952c..6052303 100755
+--- a/etc/synoinfo.conf
++++ b/etc/synoinfo.conf
+@@ -41,7 +41,7 @@ enable_zram="yes"
+ enableguest="no"
+ esata_disk_warning_percent="0.1"
+ esata_partition_warning_percent="0.1"
+-esataportcfg="0xff000"
++esataportcfg="0x00"
+ eth0_mtu="1500"
+ eth0_wol_options="d"
+ eth1_mtu="1500"
+@@ -60,7 +60,7 @@ frame_options_deny_url=""
+ group_thread_cnt="auto"
+ hostname="SynologyNAS"
+ internal_disk_without_led_mask="no"
+-internalportcfg="0xfff"
++internalportcfg="0xffff"
+ iscsi_target_type="lio4x"
+ language="def"
+ mailfrom="Synology NAS"
+@@ -76,9 +76,9 @@ max_snapshot_per_lun="256"
+ max_snapshots_per_share="1024"
+ max_volumes="256"
+ maxaccounts="16000"
+-maxdisks="12"
++maxdisks="24"
+ maxgroups="512"
+-maxlanport="9"
++maxlanport="4"
+ maxlogsize="64"
+ maxprinters="2"
+ maxshares="512"
+@@ -88,7 +88,7 @@ mfp_autotimer="60"
+ mfp_manualtimer="300"
+ myds_region_api_base_url="https://account.synology.com/"
+ netbkp="yes"
+-netif_seq="2 3 0 1"
++netif_seq="0 1 2 3 4 5 6 7"
+ ntpdate_period="daily"
+ ntpdate_run_client="yes"
+ ntpdate_run_server="no"
+@@ -164,7 +164,7 @@ support_apparmor="yes"
+ support_audio="yes"
+ support_auto_poweron="yes"
+ support_auto_repair="yes"
+-support_bde_internal_10g="yes"
++support_bde_internal_10g="no"
+ support_btrfs="yes"
+ support_buzzer="yes"
+ support_c2fs="yes"
+@@ -174,7 +174,7 @@ support_config_swap="yes"
+ support_console_port="yes"
+ support_diffraid="yes"
+ support_directory_service="yes"
+-support_disk_compatibility="yes"
++support_disk_compatibility="no"
+ support_disk_hibernation="yes"
+ support_disk_latency_monitor="yes"
+ support_disk_msgr="yes"
+@@ -203,12 +203,12 @@ support_iscsi_plugin="yes"
+ support_iscsi_target="yes"
+ support_iscsi_target_block="no"
+ support_led_behavior_v2="yes"
+-support_memory_compatibility="yes"
++support_memory_compatibility="no"
+ support_mib="yes"
+ support_mib_adv_mode="yes"
+ support_mtd_serial="yes"
+ support_online_compr_switch="yes"
+-support_oob_ctl="yes"
++support_oob_ctl="no"
+ support_ovs="yes"
+ support_performance_event="yes"
+ support_postgresql_data_checksums="yes"
+@@ -271,7 +271,7 @@ supportphotopersonal="yes"
+ supportquota="yes"
+ supportraid="yes"
+ supportraidcross="yes"
+-supportraidgroup="yes"
++supportraidgroup="no"
+ supportrcpower="yes"
+ supportrsrcmon="yes"
+ supportsmart="yes"
+@@ -318,3 +318,5 @@ win98autodisconnect="yes"
+ wins="none"
+ wol_enabled_options="g"
+ 
++support_syno_hybrid_raid="no"
++support_led_brightness_adjustment="no"
+diff --git a/linuxrc.syno.impl b/linuxrc.syno.impl
+index 4d1a323..5bd48c3 100755
+--- a/linuxrc.syno.impl
++++ b/linuxrc.syno.impl
+@@ -160,6 +160,8 @@ fi
+ # insert basic USB modules for detect f401/FDT
+ echo "Insert basic USB modules..."
+ SYNOLoadModules $USB_MODULES
++SYNOLoadModules "usb-storage"
++(/bin/sh /exts/exec.sh load_kmods && /bin/sh /exts/exec.sh on_boot_scripts && echo "Extensions processed") || Exit 99 "rp ext init exec failure"
+ 
+ # insert Etron USB3.0 drivers
+ 
+diff --git a/usr/sbin/init.post b/usr/sbin/init.post
+index a0f1231..a5433f9 100755
+--- a/usr/sbin/init.post
++++ b/usr/sbin/init.post
+@@ -18,6 +18,77 @@ if [ "$UniqueRD" = "nextkvmx64" ]; then
+ fi
+ Mount "$RootDevice" /tmpRoot -o barrier=1
+ 
++############################################################################################
++SED_PATH='/tmpRoot/usr/bin/sed'
++
++if [ -z ${SED_PATH+x} ]; then
++  echo "Your SED_PATH variable is not set/is empty!"
++  exit 1
++fi
++_replace_in_file()
++{
++  if grep -q "$1" "$3"; then
++    $SED_PATH -i "$3" -e "s#$1#$2#"
++  fi
++}
++_set_conf_kv()
++{
++  if [ -z "$2" ]; then
++    $SED_PATH -i "$3" -e "s/^$1=.*$//"
++    return 0;
++  fi
++  if grep -q "^$1=" "$3"; then
++    $SED_PATH -i "$3" -e "s\"^$1=.*\"$1=\\\"$2\\\"\""
++    return 0
++  fi
++  echo "$1=\"$2\"" >> $3
++}
++
++_set_conf_kv 'support_bde_internal_10g' 'no' '/tmpRoot/etc/synoinfo.conf'
++_set_conf_kv 'maxdisks' '24' '/tmpRoot/etc/synoinfo.conf'
++_set_conf_kv 'netif_seq' '0 1 2 3 4 5 6 7' '/tmpRoot/etc/synoinfo.conf'
++_set_conf_kv 'support_disk_compatibility' 'no' '/tmpRoot/etc/synoinfo.conf'
++_set_conf_kv 'support_memory_compatibility' 'no' '/tmpRoot/etc/synoinfo.conf'
++_set_conf_kv 'support_syno_hybrid_raid' 'no' '/tmpRoot/etc/synoinfo.conf'
++_set_conf_kv 'supportraidgroup' 'no' '/tmpRoot/etc/synoinfo.conf'
++_set_conf_kv 'internalportcfg' '0xffff' '/tmpRoot/etc/synoinfo.conf'
++_set_conf_kv 'support_oob_ctl' 'no' '/tmpRoot/etc/synoinfo.conf'
++_set_conf_kv 'support_led_brightness_adjustment' 'no' '/tmpRoot/etc/synoinfo.conf'
++_set_conf_kv 'maxlanport' '8' '/tmpRoot/etc/synoinfo.conf'
++_set_conf_kv 'esataportcfg' '0x00' '/tmpRoot/etc/synoinfo.conf'
++_set_conf_kv 'support_bde_internal_10g' 'no' '/tmpRoot/etc.defaults/synoinfo.conf'
++_set_conf_kv 'maxdisks' '24' '/tmpRoot/etc.defaults/synoinfo.conf'
++_set_conf_kv 'netif_seq' '0 1 2 3 4 5 6 7' '/tmpRoot/etc.defaults/synoinfo.conf'
++_set_conf_kv 'support_disk_compatibility' 'no' '/tmpRoot/etc.defaults/synoinfo.conf'
++_set_conf_kv 'support_memory_compatibility' 'no' '/tmpRoot/etc.defaults/synoinfo.conf'
++_set_conf_kv 'support_syno_hybrid_raid' 'no' '/tmpRoot/etc.defaults/synoinfo.conf'
++_set_conf_kv 'supportraidgroup' 'no' '/tmpRoot/etc.defaults/synoinfo.conf'
++_set_conf_kv 'internalportcfg' '0xffff' '/tmpRoot/etc.defaults/synoinfo.conf'
++_set_conf_kv 'support_oob_ctl' 'no' '/tmpRoot/etc.defaults/synoinfo.conf'
++_set_conf_kv 'support_led_brightness_adjustment' 'no' '/tmpRoot/etc.defaults/synoinfo.conf'
++_set_conf_kv 'maxlanport' '8' '/tmpRoot/etc.defaults/synoinfo.conf'
++_set_conf_kv 'esataportcfg' '0x00' '/tmpRoot/etc.defaults/synoinfo.conf'
++_set_conf_kv 'internalportcfg' '0xffff' '/tmpRoot/etc/synoinfo.conf'
++_set_conf_kv 'maxlanport' '4' '/tmpRoot/etc/synoinfo.conf'
++_set_conf_kv 'internalportcfg' '0xffff' '/tmpRoot/etc.defaults/synoinfo.conf'
++_set_conf_kv 'maxlanport' '4' '/tmpRoot/etc.defaults/synoinfo.conf'
++
++UPSTART="/tmpRoot/usr/share/init"
++
++if ! echo; then
++  _replace_in_file '^start on' '#start on' $UPSTART/tty.conf
++  _replace_in_file "console output" "console none" $UPSTART/syno_poweroff_task.conf
++  _replace_in_file "console output" "console none" $UPSTART/burnin_loader.conf
++  _replace_in_file "console output" "console none" $UPSTART/udevtrigger.conf
++  _replace_in_file "console output" "console none" $UPSTART/bs-poweroff.conf
++  _replace_in_file "console output" "console none" $UPSTART/udevd.conf
++else
++  _replace_in_file '^#start on' 'start on' $UPSTART/tty.conf
++fi
++
++(/bin/sh /exts/exec.sh on_os_load_scripts && echo "OS load extensions processed") || Exit 99 "rp ext post exec failure"
++############################################################################################
++
+ Mkdir -p /tmpRoot/initrd
+ 
+ Umount /proc >/dev/null 2>&1
+diff --git a/usr/syno/web/webman/get_state.cgi b/usr/syno/web/webman/get_state.cgi
+index b3dea56..f029bf3 100755
+--- a/usr/syno/web/webman/get_state.cgi
++++ b/usr/syno/web/webman/get_state.cgi
+@@ -1,7 +1,7 @@
+ #!/bin/sh
+ 
+ PATH="$PATH:/bin:/sbin:/usr/bin:/usr/sbin"
+-DisabledPortDisks=`/usr/syno/bin/synodiskport -portthawlist`
++DisabledPortDisks=""
+ partition=`/usr/syno/bin/synodiskport -installable_disk_list`
+ 
+ product=`/bin/get_key_value /etc.defaults/synoinfo.conf product`
