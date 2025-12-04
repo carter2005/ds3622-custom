@@ -1,13 +1,3 @@
-diff --git a/etc/hosts b/etc/hosts
-index 37f1ad4..78d7e48 100644
---- a/etc/hosts
-+++ b/etc/hosts
-@@ -2,3 +2,5 @@
- # that require network functionality will fail.
- 127.0.0.1	localhost
- ::1	localhost
-+127.0.0.1	update7.synology.com
-+127.0.0.1	dataupdate7.synology.com
 diff --git a/etc/passwd b/etc/passwd
 index 60931c8..f90c52f 100644
 --- a/etc/passwd
