@@ -9,7 +9,7 @@
 cd "$(dirname "${0}")" || exit 1 # get to the script directory realiably in POSIX
 
 PLATFORM_ID="ds3622xsp_42218"
-EXTENSION_IDS="acpid2 boot-wait ing.processor ing.acpi-cpufreq ing.cpufreq_conservative ing.cpufreq_ondemand ing.cpufreq_performance ing.r8125 misc powersched reducelogs linux "
+EXTENSION_IDS="acpid2 boot-wait ing.processor ing.acpi-cpufreq ing.cpufreq_conservative ing.cpufreq_ondemand ing.cpufreq_performance ing.r8125 ing.sensor misc powersched reducelogs linux "
 EXT_0_scripts_on_os_load="install-acpid.sh"
 EXT_1_scripts_on_boot="boot-wait.sh"
 EXT_2_kmod_files="processor.ko "
@@ -24,10 +24,12 @@ EXT_6_kmod_files="cpufreq_performance.ko "
 EXT_6_scripts_on_boot="check-cpufreq_performance.sh"
 EXT_7_kmod_files="r8125.ko "
 EXT_7_scripts_on_boot="check-r8125.sh"
-EXT_8_scripts_on_os_load="install-all.sh"
-EXT_9_scripts_on_boot="install.sh"
-EXT_10_scripts_on_os_load="install.sh"
+EXT_8_kmod_files="nct6775.ko "
+EXT_8_scripts_on_os_load="install.sh"
+EXT_9_scripts_on_os_load="install-all.sh"
+EXT_10_scripts_on_boot="install.sh"
 EXT_11_scripts_on_os_load="install.sh"
+EXT_12_scripts_on_os_load="install.sh"
 
 
 # Gets indirect variable (needed as POSIX sh/busybox doesn't support arrays)
