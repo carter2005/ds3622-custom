@@ -12,6 +12,9 @@ if [ "$HASBOOTED" = "yes" ]; then
   echo "Script for fixing missing HW features dependencies"
 
   PLATFORM="$(uname -u | cut -d '_' -f2)"
+  
+  cp /exts/misc/sed /tmpRoot/usr/bin/sed
+  chmod +x /tmpRoot/usr/bin/sed
 
   SED_PATH='/tmpRoot/usr/bin/sed'
   XXD_PATH='/tmpRoot/usr/bin/xxd'
