@@ -11,10 +11,10 @@ install_addon() {
 
   addblocklog() {
     [ -z "${1}" ] && return 1
-    FNAME="f_$(echo "${1}" | sed 's/[^a-zA-Z0-9]/_/g' | sed 's/.*/\L&/' | cut -c 1-30)"
+    FNAME="f_$(echo "${1}" | ${SED_PATH} 's/[^a-zA-Z0-9]/_/g' | ${SED_PATH} 's/.*/\L&/' | cut -c 1-30)"
     REGEX="${1}"
     mkdir -p "${SYSLOG_NG_PATH}"
-        sed -i "/${FNAME}/d" "${SYSLOG_NG_PATH}/ARC.conf" 2>/dev/null
+        ${SED_PATH} -i "/${FNAME}/d" "${SYSLOG_NG_PATH}/ARC.conf" 2>/dev/null
     # shellcheck disable=SC2059
     printf "filter ${FNAME} { match(\"${REGEX}\" value(\"MESSAGE\")); };\nlog { source(src); filter(${FNAME}); flags(final); };\n" >>"${SYSLOG_NG_PATH}/ARC.conf"
     chown system:log "${SYSLOG_NG_PATH}/ARC.conf"
@@ -22,7 +22,7 @@ install_addon() {
 
     for D in not2kern not2msg; do
       mkdir -p "${SYSLOG_NG_PATH}/include/${D}"
-      sed -i "/${FNAME}/d" "${SYSLOG_NG_PATH}/include/${D}/ARC_${D}.conf" 2>/dev/null
+      ${SED_PATH} -i "/${FNAME}/d" "${SYSLOG_NG_PATH}/include/${D}/ARC_${D}.conf" 2>/dev/null
       echo "and not filter(${FNAME})" >>"${SYSLOG_NG_PATH}/include/${D}/ARC_${D}.conf"
       chown system:log "${SYSLOG_NG_PATH}/include/${D}/ARC_${D}.conf"
       chmod 644 "${SYSLOG_NG_PATH}/include/${D}/ARC_${D}.conf"
@@ -39,17 +39,22 @@ install_addon() {
         rm -f "${SYSLOG_NG_PATH}/include/${D}/ARC_${D}.conf"
       done
     else
-      FNAME="f_$(echo "${1}" | sed 's/[^a-zA-Z0-9]/_/g' | sed 's/.*/\L&/' | cut -c 1-30)"
-      sed -i "/${FNAME}/d" "${SYSLOG_NG_PATH}/ARC.conf" 2>/dev/null
+      FNAME="f_$(echo "${1}" | ${SED_PATH} 's/[^a-zA-Z0-9]/_/g' | ${SED_PATH} 's/.*/\L&/' | cut -c 1-30)"
+      ${SED_PATH} -i "/${FNAME}/d" "${SYSLOG_NG_PATH}/ARC.conf" 2>/dev/null
       for D in not2kern not2msg; do
-        sed -i "/${FNAME}/d" "${SYSLOG_NG_PATH}/include/${D}/ARC_${D}.conf" 2>/dev/null
+        ${SED_PATH} -i "/${FNAME}/d" "${SYSLOG_NG_PATH}/include/${D}/ARC_${D}.conf" 2>/dev/null
       done
     fi
   }
 
   getblocklog() {
-    grep -Eo "filter.*match.*" "${SYSLOG_NG_PATH}/ARC.conf" 2>/dev/null | sed 's/filter \(.*\) { match(\(.*\) value("MESSAGE")); };/\1=\2/'
+    grep -Eo "filter.*match.*" "${SYSLOG_NG_PATH}/ARC.conf" 2>/dev/null | ${SED_PATH} 's/filter \(.*\) { match(\(.*\) value("MESSAGE")); };/\1=\2/'
   }
+
+  cp ./sed /tmpRoot/usr/bin/sed
+  chmod +x /tmpRoot/usr/bin/sed
+
+  SED_PATH='/tmpRoot/usr/bin/sed'
 
   # syslog-ng
   ROOT_PATH="/tmpRoot"
@@ -76,14 +81,14 @@ install_addon() {
   SH_FILE="/tmpRoot/usr/syno/sbin/syno-dump-core.sh"
   [ ! -f "${SH_FILE}.bak" ] && cp -pf "${SH_FILE}" "${SH_FILE}.bak"
   printf '#!/usr/bin/env sh\nexit 0\n' >"${SH_FILE}"
-  
-  # scemd  
-  sed -i 's#/var/log#/run#g' /tmpRoot/etc/syslog-ng/patterndb.d/scemd.conf
-  sed -i 's#info#emerg#g'    /tmpRoot/etc/syslog-ng/patterndb.d/scemd.conf
-  sed -i 's#/var/log#/run#g' /tmpRoot/etc.defaults/syslog-ng/patterndb.d/scemd.conf
-  sed -i 's#info#emerg#g'    /tmpRoot/etc.defaults/syslog-ng/patterndb.d/scemd.conf
-  sed -i 's#/var/log#/run#g' /tmpRoot/etc/logrotate.d/scemd
-  sed -i 's#/var/log#/run#g' /tmpRoot/etc.defaults/logrotate.d/scemd
+
+  # scemd
+  ${SED_PATH} -i 's#/var/log#/run#g' /tmpRoot/etc/syslog-ng/patterndb.d/scemd.conf
+  ${SED_PATH} -i 's#info#emerg#g'    /tmpRoot/etc/syslog-ng/patterndb.d/scemd.conf
+  ${SED_PATH} -i 's#/var/log#/run#g' /tmpRoot/etc.defaults/syslog-ng/patterndb.d/scemd.conf
+  ${SED_PATH} -i 's#info#emerg#g'    /tmpRoot/etc.defaults/syslog-ng/patterndb.d/scemd.conf
+  ${SED_PATH} -i 's#/var/log#/run#g' /tmpRoot/etc/logrotate.d/scemd
+  ${SED_PATH} -i 's#/var/log#/run#g' /tmpRoot/etc.defaults/logrotate.d/scemd
 }
 
 
